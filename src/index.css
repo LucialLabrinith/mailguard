@@ -1,0 +1,370 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    margin: 0;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #020617;
+    color: #f8fafc;
+  }
+
+  code, pre, kbd {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Light Audit Theme */
+html.light-audit body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* High-Contrast Forensic Dark & Light Audit Theme Transitions */
+:root {
+  color-scheme: dark;
+}
+
+html.light-audit {
+  color-scheme: light;
+}
+
+/* Base App Canvases */
+.light-audit,
+.light-audit body,
+.light-audit #root {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Eradicate dark and colored shadow patches in bright mode */
+.light-audit,
+.light-audit * {
+  --tw-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.04) !important;
+  --tw-shadow-colored: 0 1px 2px 0 rgba(15, 23, 42, 0.04) !important;
+  --tw-shadow-color: rgba(15, 23, 42, 0.04) !important;
+}
+
+.light-audit [class*="shadow"] {
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.03) !important;
+}
+
+.light-audit .shadow-none,
+.light-audit [class*="shadow-none"] {
+  box-shadow: none !important;
+}
+
+.light-audit [class*="shadow-purple"],
+.light-audit [class*="shadow-cyan"],
+.light-audit [class*="shadow-red"],
+.light-audit [class*="shadow-emerald"],
+.light-audit [class*="shadow-amber"],
+.light-audit [class*="shadow-blue"],
+.light-audit [class*="shadow-indigo"],
+.light-audit [class*="shadow-slate"],
+.light-audit [class*="shadow-black"] {
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.04) !important;
+  --tw-shadow-color: transparent !important;
+}
+
+/* Suppress ambient blur glow orbs and heavy dark backdrops that show as smudge patches */
+.light-audit [class*="blur-xl"],
+.light-audit [class*="blur-2xl"],
+.light-audit [class*="blur-3xl"] {
+  display: none !important;
+}
+
+.light-audit [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Surfaces and Containers */
+.light-audit [class*="bg-slate-900"],
+.light-audit [class*="bg-slate-850"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.light-audit [class*="bg-slate-950"] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.light-audit main.bg-slate-950,
+.light-audit .bg-slate-950 {
+  background-color: #f8fafc !important;
+}
+
+/* Comprehensive neutralization of dark mode background gradients in light mode */
+.light-audit [class*="from-slate-9"],
+.light-audit [class*="from-slate-8"],
+.light-audit [class*="from-zinc-9"],
+.light-audit [class*="from-gray-9"],
+.light-audit [class*="from-cyan-9"],
+.light-audit [class*="from-blue-9"],
+.light-audit [class*="from-purple-9"],
+.light-audit [class*="from-violet-9"],
+.light-audit [class*="from-indigo-9"],
+.light-audit [class*="from-black"],
+.light-audit [class*="via-slate-9"],
+.light-audit [class*="via-slate-8"],
+.light-audit [class*="via-zinc-9"],
+.light-audit [class*="via-gray-9"],
+.light-audit [class*="via-cyan-9"],
+.light-audit [class*="via-blue-9"],
+.light-audit [class*="via-purple-9"],
+.light-audit [class*="via-violet-9"],
+.light-audit [class*="via-indigo-9"],
+.light-audit [class*="via-black"],
+.light-audit [class*="to-slate-9"],
+.light-audit [class*="to-slate-8"],
+.light-audit [class*="to-zinc-9"],
+.light-audit [class*="to-gray-9"],
+.light-audit [class*="to-cyan-9"],
+.light-audit [class*="to-blue-9"],
+.light-audit [class*="to-purple-9"],
+.light-audit [class*="to-violet-9"],
+.light-audit [class*="to-indigo-9"],
+.light-audit [class*="to-black"] {
+  background-image: none !important;
+  background-color: #ffffff !important;
+}
+
+/* High-contrast legibility for accent labels and text on light surfaces */
+.light-audit .text-cyan-300,
+.light-audit .text-cyan-200 {
+  color: #0891b2 !important;
+}
+
+.light-audit .text-purple-300,
+.light-audit .text-purple-200 {
+  color: #7e22ce !important;
+}
+
+.light-audit .text-blue-300,
+.light-audit .text-blue-200 {
+  color: #2563eb !important;
+}
+
+.light-audit .text-amber-300,
+.light-audit .text-amber-200 {
+  color: #b45309 !important;
+}
+
+.light-audit .text-emerald-300,
+.light-audit .text-emerald-200 {
+  color: #059669 !important;
+}
+
+/* Sidebar & Navigation Panes */
+.light-audit aside {
+  background-color: #ffffff !important;
+  border-right-color: #e2e8f0 !important;
+}
+
+.light-audit header {
+  background-color: #ffffff !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+/* Typography Overrides */
+.light-audit .text-white {
+  color: #0f172a !important;
+}
+
+.light-audit [class*="text-slate-1"],
+.light-audit [class*="text-slate-2"],
+.light-audit [class*="text-slate-3"] {
+  color: #1e293b !important;
+}
+
+.light-audit .text-slate-400 {
+  color: #475569 !important;
+}
+
+.light-audit .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Borders & Dividers */
+.light-audit [class*="border-slate-8"],
+.light-audit [class*="border-slate-7"],
+.light-audit [class*="border-slate-9"],
+.light-audit [class*="border-red-9"],
+.light-audit [class*="border-amber-9"],
+.light-audit [class*="border-cyan-8"],
+.light-audit [class*="border-purple-8"],
+.light-audit [class*="border-violet-8"],
+.light-audit .divide-slate-800 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Form Controls: Inputs, Textareas & Buttons */
+.light-audit input,
+.light-audit textarea,
+.light-audit select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light-audit input::placeholder,
+.light-audit textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.light-audit [class*="bg-slate-800"] {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light-audit .hover\:bg-slate-800:hover,
+.light-audit [class*="hover:bg-slate-8"]:hover,
+.light-audit .hover\:bg-slate-700:hover {
+  background-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* Code & Pre Blocks in Light Audit (Clean light code boxes instead of dark charcoal patches) */
+.light-audit pre,
+.light-audit code {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Soft Accent Pills and Badges in Light Mode (No dark underlays) */
+.light-audit [class*="bg-cyan-950"],
+.light-audit [class*="bg-cyan-900"] {
+  background-color: #ecfeff !important;
+  color: #0e7490 !important;
+  border-color: #a5f3fc !important;
+}
+
+.light-audit [class*="bg-amber-950"],
+.light-audit [class*="bg-amber-900"] {
+  background-color: #fffbeb !important;
+  color: #b45309 !important;
+  border-color: #fde68a !important;
+}
+
+.light-audit [class*="bg-red-950"],
+.light-audit [class*="bg-red-900"] {
+  background-color: #fef2f2 !important;
+  color: #b91c1c !important;
+  border-color: #fecaca !important;
+}
+
+.light-audit [class*="bg-emerald-950"],
+.light-audit [class*="bg-emerald-900"] {
+  background-color: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: #a7f3d0 !important;
+}
+
+.light-audit [class*="bg-purple-950"],
+.light-audit [class*="bg-purple-900"] {
+  background-color: #faf5ff !important;
+  color: #7e22ce !important;
+  border-color: #e9d5ff !important;
+}
+
+.light-audit [class*="bg-violet-950"],
+.light-audit [class*="bg-violet-900"] {
+  background-color: #f5f3ff !important;
+  color: #6d28d9 !important;
+  border-color: #ddd6fe !important;
+}
+
+/* Selection Highlights */
+.light-audit .bg-cyan-950\/25,
+.light-audit .bg-cyan-950\/40 {
+  background-color: #e0f2fe !important;
+}
+
+/* Threat Heatmap dot pattern subtle in light mode */
+.light-audit [class*="radial-gradient"] {
+  opacity: 0.04 !important;
+}
+
+/* Clean Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+
+.light-audit ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+.light-audit ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Enhanced Drag-to-Scroll & Pull-to-Refresh Container */
+.easy-scroll-stream {
+  scrollbar-width: thin;
+  scrollbar-color: #475569 transparent;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  cursor: default;
+}
+
+.easy-scroll-stream::-webkit-scrollbar {
+  width: 9px;
+}
+
+.easy-scroll-stream::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 9999px;
+}
+
+.easy-scroll-stream::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  min-height: 48px;
+}
+
+.easy-scroll-stream::-webkit-scrollbar-thumb:hover {
+  background: #06b6d4;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.light-audit .easy-scroll-stream::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.8);
+}
+
+.light-audit .easy-scroll-stream::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}
+
+.light-audit .easy-scroll-stream::-webkit-scrollbar-thumb:hover {
+  background: #0284c7;
+}
+
+.easy-scroll-stream.is-dragging {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
