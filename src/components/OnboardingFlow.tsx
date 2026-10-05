@@ -30,7 +30,13 @@ import {
   Building2,
   ArrowLeft,
   ExternalLink,
-  X
+  X,
+  Zap,
+  BarChart3,
+  Database,
+  Activity,
+  FileText,
+  CheckSquare
 } from 'lucide-react';
 import { UserSession, EmailItem, ConnectedSourceId } from '../types';
 import { googleSignIn } from '../services/googleAuth';
@@ -46,7 +52,7 @@ interface OnboardingFlowProps {
 }
 
 type AuthTab = 'login' | 'register';
-type OnboardingStep = 'auth' | 'privacy' | 'connect' | 'scan' | 'ready';
+type OnboardingStep = 'overview' | 'auth' | 'privacy' | 'connect' | 'scan' | 'ready';
 
 export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ 
   onComplete, 
@@ -55,7 +61,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
   onToggleTheme 
 }) => {
   const [internalTheme, setInternalTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('mailguard_theme') as 'light' | 'dark') || 'dark';
+    return (localStorage.getItem('mailguard_theme') as 'light' | 'dark') === 'dark' ? 'dark' : 'light';
   });
   const currentTheme = controlledTheme || internalTheme;
 
@@ -98,7 +104,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
   };
 
   const [authTab, setAuthTab] = useState<AuthTab>('login');
-  const [step, setStep] = useState<OnboardingStep>('auth');
+  const [step, setStep] = useState<OnboardingStep>('overview');
 
   // Login & Registration Inputs
   const [loginIdentifier, setLoginIdentifier] = useState('divyaam2008@gmail.com');
@@ -1042,6 +1048,505 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 
   const isLight = currentTheme === 'light';
 
+  // STEP 0: BEAUTIFUL APP EXPLANATION & OVERVIEW PAGE (BEFORE LOGIN)
+  if (step === 'overview') {
+    return (
+      <div className={`min-h-screen w-full flex flex-col font-sans select-none overflow-x-hidden ${
+        isLight ? 'bg-slate-50 text-slate-900' : 'bg-slate-950 text-slate-100'
+      }`}>
+        {/* Sticky Header with Brand, Theme Toggle & Navigation */}
+        <header className={`sticky top-0 z-40 w-full px-4 sm:px-6 lg:px-8 py-3.5 border-b backdrop-blur-md transition-colors ${
+          isLight ? 'bg-white/90 border-slate-200 shadow-xs' : 'bg-slate-950/85 border-slate-800 shadow-md'
+        }`}>
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            {/* Brand Logo & Platform Title */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20 flex-shrink-0">
+                <Shield className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-base font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    MailGuard Forensics
+                  </span>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold ${
+                    isLight ? 'bg-cyan-100 text-cyan-800 border border-cyan-300' : 'bg-cyan-950 text-cyan-400 border border-cyan-800'
+                  }`}>
+                    Zero-Trust v2.4
+                  </span>
+                </div>
+                <p className={`text-[11px] hidden sm:block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Autonomous Email Security & Cryptographic Threat Verification
+                </p>
+              </div>
+            </div>
+
+            {/* Right Action Group: Theme Switcher & Direct Auth Entry */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Bright Mode First, Dark Mode Toggle */}
+              <button
+                type="button"
+                id="btn-overview-theme-toggle"
+                onClick={handleToggleTheme}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                  isLight 
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300 shadow-xs' 
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700 shadow-xs'
+                }`}
+                title={isLight ? 'Switch to Dark Mode' : 'Switch to Bright Mode'}
+                aria-label={isLight ? 'Switch to Dark Mode' : 'Switch to Bright Mode'}
+              >
+                {isLight ? (
+                  <>
+                    <Moon className="w-4 h-4 text-indigo-600" />
+                    <span>Dark Mode</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="w-4 h-4 text-amber-400" />
+                    <span>Bright Mode</span>
+                  </>
+                )}
+              </button>
+
+              {onOpenFriendlyGuide && (
+                <button
+                  type="button"
+                  onClick={onOpenFriendlyGuide}
+                  className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                    isLight 
+                      ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300' 
+                      : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+                  }`}
+                  title="Open Friendly Security Guide"
+                >
+                  <HelpCircle className="w-4 h-4 text-cyan-500" />
+                  <span>Guide</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                id="btn-overview-login-top"
+                onClick={() => {
+                  setAuthTab('login');
+                  setStep('auth');
+                }}
+                className={`px-3 sm:px-4 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                  isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-xs'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700'
+                }`}
+              >
+                Log In
+              </button>
+
+              <button
+                type="button"
+                id="btn-overview-register-top"
+                onClick={() => {
+                  setAuthTab('register');
+                  setStep('auth');
+                }}
+                className="px-3.5 sm:px-4 py-1.5 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Get Started</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Overview Body */}
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-16">
+          
+          {/* HERO SECTION */}
+          <section className="text-center max-w-4xl mx-auto space-y-6 pt-4 sm:pt-8">
+            <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold border ${
+              isLight 
+                ? 'bg-cyan-50 border-cyan-200 text-cyan-800 shadow-xs' 
+                : 'bg-cyan-950/80 border-cyan-800 text-cyan-300 shadow-xs'
+            }`}>
+              <ShieldCheck className="w-4 h-4 text-cyan-500" />
+              <span>Next-Generation Zero-Trust Email Security & Forensic Intelligence</span>
+            </div>
+
+            <h1 className={`text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight ${
+              isLight ? 'text-slate-950' : 'text-white'
+            }`}>
+              Autonomous Email Defense, Cryptographic Seals & Real-Time Incident Response
+            </h1>
+
+            <p className={`text-base sm:text-lg max-w-3xl mx-auto leading-relaxed ${
+              isLight ? 'text-slate-600' : 'text-slate-300'
+            }`}>
+              MailGuard Forensics protects organizations from spear-phishing, business email compromise (BEC), and financial spoofing. Ingest live messages from <strong>Gmail</strong>, <strong>Microsoft 365</strong>, <strong>Outlook</strong>, and <strong>Exchange</strong> with instant cryptographic SPF/DKIM/DMARC verification, tamper-evident SHA-256 evidence hashing, and AI threat triage.
+            </p>
+
+            {/* Primary Action Buttons */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                id="btn-hero-login"
+                onClick={() => {
+                  setAuthTab('login');
+                  setStep('auth');
+                }}
+                className="px-6 py-3 rounded-xl font-bold text-sm bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/25 flex items-center gap-2 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+              >
+                <span>Enter Security Terminal (Log In)</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                id="btn-hero-register"
+                onClick={() => {
+                  setAuthTab('register');
+                  setStep('auth');
+                }}
+                className={`px-5 py-3 rounded-xl font-bold text-sm border transition-all flex items-center gap-2 cursor-pointer ${
+                  isLight 
+                    ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-xs' 
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700'
+                }`}
+              >
+                <UserCheck className="w-4 h-4 text-cyan-500" />
+                <span>Create Analyst Account</span>
+              </button>
+
+              <button
+                type="button"
+                id="btn-hero-demo"
+                onClick={() => {
+                  handleLoadDummyAccount();
+                  setStep('auth');
+                }}
+                className={`px-4 py-3 rounded-xl text-xs font-mono font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                  isLight 
+                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200' 
+                    : 'bg-amber-950/60 hover:bg-amber-900 text-amber-300 border-amber-800'
+                }`}
+                title="Prepopulate verified demo analyst credentials"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Instant Demo Account</span>
+              </button>
+            </div>
+
+            {/* Real-Time Security Metrics Strip */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 pt-6">
+              <div className={`p-4 rounded-xl border text-center transition-all ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-900/80 border-slate-800'
+              }`}>
+                <div className="text-2xl sm:text-3xl font-extrabold text-cyan-600 font-mono">99.98%</div>
+                <div className={`text-xs mt-1 font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Phishing Interception</div>
+              </div>
+              <div className={`p-4 rounded-xl border text-center transition-all ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-900/80 border-slate-800'
+              }`}>
+                <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 font-mono">0 ms</div>
+                <div className={`text-xs mt-1 font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>RFC 5322 Zero-Latency Parsing</div>
+              </div>
+              <div className={`p-4 rounded-xl border text-center transition-all ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-900/80 border-slate-800'
+              }`}>
+                <div className="text-2xl sm:text-3xl font-extrabold text-indigo-600 font-mono">100%</div>
+                <div className={`text-xs mt-1 font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>SPF / DKIM / DMARC Validation</div>
+              </div>
+              <div className={`p-4 rounded-xl border text-center transition-all ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-900/80 border-slate-800'
+              }`}>
+                <div className="text-2xl sm:text-3xl font-extrabold text-purple-600 font-mono">SHA-256</div>
+                <div className={`text-xs mt-1 font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Tamper-Proof Evidence Vault</div>
+              </div>
+            </div>
+          </section>
+
+          {/* 3-STEP PIPELINE: HOW MAILGUARD WORKS */}
+          <section className="space-y-6">
+            <div className="text-center max-w-2xl mx-auto">
+              <h2 className={`text-2xl sm:text-3xl font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                How MailGuard Works
+              </h2>
+              <p className={`text-sm mt-2 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                Three seamless phases of zero-trust verification and threat containment.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Step 1 */}
+              <div className={`p-6 rounded-2xl border relative flex flex-col justify-between ${
+                isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/70 border-slate-800'
+              }`}>
+                <div className="space-y-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-600">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div className="text-xs font-mono font-bold text-cyan-600">PHASE 01</div>
+                  <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Multi-Inbox Ingestion
+                  </h3>
+                  <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                    Connect your real Google Workspace (Gmail OAuth), Microsoft 365, Outlook, or corporate Exchange mailboxes, or paste raw RFC 5322 header streams with zero password exposure.
+                  </p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2 text-[11px] font-mono text-cyan-600">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Real OAuth & IMAP proxy streams</span>
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className={`p-6 rounded-2xl border relative flex flex-col justify-between ${
+                isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/70 border-slate-800'
+              }`}>
+                <div className="space-y-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-600">
+                    <Cpu className="w-5 h-5" />
+                  </div>
+                  <div className="text-xs font-mono font-bold text-indigo-600">PHASE 02</div>
+                  <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Cryptographic Header Inspection
+                  </h3>
+                  <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                    Every inbound payload is examined for DKIM digital signatures, SPF relay authenticity, DMARC policy compliance, reverse DNS records, and upstream ISP / Tor exit nodes.
+                  </p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2 text-[11px] font-mono text-indigo-600">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Earliest relay tracing & ASN tags</span>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className={`p-6 rounded-2xl border relative flex flex-col justify-between ${
+                isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/70 border-slate-800'
+              }`}>
+                <div className="space-y-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div className="text-xs font-mono font-bold text-emerald-600">PHASE 03</div>
+                  <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Triage, Isolate & Defend
+                  </h3>
+                  <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                    Browse a clean, high-density email stream. Click any email to open exhaustive forensic details in a closable pop-up. Perform 1-click quarantine, sinkhole domains, or export PDF reports.
+                  </p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2 text-[11px] font-mono text-emerald-600">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Closable pop-up details on click</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 6 CORE PLATFORM CAPABILITIES */}
+          <section className="space-y-6">
+            <div className="text-center max-w-2xl mx-auto">
+              <h2 className={`text-2xl sm:text-3xl font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                Core Security Capabilities
+              </h2>
+              <p className={`text-sm mt-2 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                Comprehensive cyber forensic toolset designed for SOC analysts, enterprise teams, and private users.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {/* Feature 1 */}
+              <div className={`p-5 rounded-2xl border transition-all ${
+                isLight ? 'bg-white border-slate-200 hover:border-cyan-400 shadow-xs' : 'bg-slate-900/60 border-slate-800 hover:border-cyan-600'
+              }`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-600">
+                    <Inbox className="w-5 h-5" />
+                  </div>
+                  <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Unified Mailbox Streams
+                  </h4>
+                </div>
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                  Aggregate Gmail, Microsoft 365, Outlook, iCloud, and Exchange into a single zero-trust view with conversation threading and real-time synchronization.
+                </p>
+              </div>
+
+              {/* Feature 2 */}
+              <div className={`p-5 rounded-2xl border transition-all ${
+                isLight ? 'bg-white border-slate-200 hover:border-cyan-400 shadow-xs' : 'bg-slate-900/60 border-slate-800 hover:border-cyan-600'
+              }`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-600">
+                    <Activity className="w-5 h-5" />
+                  </div>
+                  <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Dual-Metric Priority Matrix
+                  </h4>
+                </div>
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                  Separates business importance (0-100) from threat severity (0-100). Never miss urgent client invoices while stopping disguised spear-phishing attacks.
+                </p>
+              </div>
+
+              {/* Feature 3 */}
+              <div className={`p-5 rounded-2xl border transition-all ${
+                isLight ? 'bg-white border-slate-200 hover:border-cyan-400 shadow-xs' : 'bg-slate-900/60 border-slate-800 hover:border-cyan-600'
+              }`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600">
+                    <Globe2 className="w-5 h-5" />
+                  </div>
+                  <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Origin Relay & Threat Tracing
+                  </h4>
+                </div>
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                  Dissects Received headers back to the earliest reliable MTA. Correlates known bulletproof hosters (FlokiNET, VDSina) and active threat campaigns.
+                </p>
+              </div>
+
+              {/* Feature 4 */}
+              <div className={`p-5 rounded-2xl border transition-all ${
+                isLight ? 'bg-white border-slate-200 hover:border-cyan-400 shadow-xs' : 'bg-slate-900/60 border-slate-800 hover:border-cyan-600'
+              }`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
+                    <FileCheck className="w-5 h-5" />
+                  </div>
+                  <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Closable Pop-Up Email Forensics
+                  </h4>
+                </div>
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                  Inbox emails open strictly in closable, distraction-free pop-up modals. Inspect raw RFC headers, forensic cryptographic seals, and copy AI safe replies.
+                </p>
+              </div>
+
+              {/* Feature 5 */}
+              <div className={`p-5 rounded-2xl border transition-all ${
+                isLight ? 'bg-white border-slate-200 hover:border-cyan-400 shadow-xs' : 'bg-slate-900/60 border-slate-800 hover:border-cyan-600'
+              }`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                  <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Interactive Policy Sandbox
+                  </h4>
+                </div>
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                  Simulate zero-trust containment policies against specific senders or campaigns in an isolated simulator before deploying changes to live mailboxes.
+                </p>
+              </div>
+
+              {/* Feature 6 */}
+              <div className={`p-5 rounded-2xl border transition-all ${
+                isLight ? 'bg-white border-slate-200 hover:border-cyan-400 shadow-xs' : 'bg-slate-900/60 border-slate-800 hover:border-cyan-600'
+              }`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-lg bg-rose-500/10 text-rose-600">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    AI Memory & Adaptive Learning
+                  </h4>
+                </div>
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                  MailGuard learns from your manual category classifications. Shift any sender once, and the AI memory engine automatically routes future inbound emails.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* FORENSIC POP-UP HIGHLIGHT SHOWCASE */}
+          <section className={`p-6 sm:p-8 rounded-3xl border ${
+            isLight ? 'bg-white border-slate-200 shadow-md' : 'bg-slate-900/80 border-slate-800 shadow-xl'
+          }`}>
+            <div className="max-w-3xl mx-auto space-y-4 text-center">
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold ${
+                isLight ? 'bg-cyan-100 text-cyan-800' : 'bg-cyan-950 text-cyan-300 border border-cyan-800'
+              }`}>
+                <CheckSquare className="w-3.5 h-3.5" />
+                <span>Closable Pop-Up Architecture</span>
+              </div>
+              <h3 className={`text-2xl font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                Clean Stream List with Instant Pop-Up Forensics
+              </h3>
+              <p className={`text-xs sm:text-sm leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                In your MailGuard Inbox, email details never clutter or split your view unexpectedly. Clicking on any email opens an exhaustive, dedicated forensic pop-up modal containing raw headers, security seals, and threat explanations—fully closable via the top close button, Escape key, or backdrop click.
+              </p>
+            </div>
+          </section>
+
+          {/* BOTTOM CTA: READY TO DEFEND */}
+          <section className={`p-8 sm:p-12 rounded-3xl border text-center space-y-6 ${
+            isLight 
+              ? 'bg-gradient-to-br from-cyan-50 via-white to-blue-50 border-cyan-200 shadow-lg' 
+              : 'bg-gradient-to-br from-slate-900 via-slate-900/90 to-cyan-950/40 border-slate-800 shadow-2xl'
+          }`}>
+            <div className="max-w-2xl mx-auto space-y-3">
+              <h2 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${
+                isLight ? 'text-slate-950' : 'text-white'
+              }`}>
+                Ready to Secure Your Communications?
+              </h2>
+              <p className={`text-sm ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                Sign in to your MailGuard Security Terminal now to experience zero-trust email defense, real-time cryptographic verification, and AI-assisted forensics.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                id="btn-bottom-login"
+                onClick={() => {
+                  setAuthTab('login');
+                  setStep('auth');
+                }}
+                className="px-6 py-3 rounded-xl font-bold text-sm bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/25 flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <span>Enter Terminal (Log In)</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                id="btn-bottom-register"
+                onClick={() => {
+                  setAuthTab('register');
+                  setStep('auth');
+                }}
+                className={`px-5 py-3 rounded-xl font-bold text-sm border transition-all flex items-center gap-2 cursor-pointer ${
+                  isLight 
+                    ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-xs' 
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700'
+                }`}
+              >
+                <UserCheck className="w-4 h-4 text-cyan-500" />
+                <span>Create Analyst Account</span>
+              </button>
+            </div>
+          </section>
+        </main>
+
+        {/* Global Footer */}
+        <footer className={`w-full py-6 px-4 border-t text-center text-xs font-mono ${
+          isLight ? 'bg-white border-slate-200 text-slate-500' : 'bg-slate-950 border-slate-900 text-slate-500'
+        }`}>
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span>MailGuard Forensics • Zero-Trust Perimeter Defense & Digital Forensics</span>
+            <div className="flex items-center gap-4">
+              <span>SHA-256 Assurance</span>
+              <span>RFC 5322 Compliant</span>
+              <span>Bright / Dark Reactive</span>
+            </div>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen flex items-center justify-center p-4 relative overflow-hidden font-sans select-none ${
       isLight ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-slate-100'
@@ -1134,6 +1639,25 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
         {step === 'auth' && (
           <div className="p-6 md:p-8 space-y-6">
             
+            {/* Back to App Explanation / Overview Link */}
+            <div className="flex items-center justify-between pb-1 -mt-1">
+              <button
+                type="button"
+                id="btn-auth-back-overview"
+                onClick={() => setStep('overview')}
+                className={`flex items-center gap-1.5 text-xs font-mono font-semibold transition-colors cursor-pointer ${
+                  isLight ? 'text-cyan-700 hover:text-cyan-900' : 'text-cyan-400 hover:text-cyan-200'
+                }`}
+                title="Return to App Overview & Explanation"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>← Back to App Overview</span>
+              </button>
+              <span className={`text-[11px] font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                Step 1 of 5
+              </span>
+            </div>
+
             {/* Friendly Tabs: Direct Login vs Register */}
             <div className={`flex items-center p-1 rounded-xl border ${
               isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-950 border-slate-800'

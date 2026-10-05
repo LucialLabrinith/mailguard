@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   Inbox, 
   Star, 
@@ -154,7 +154,7 @@ export const MailView: React.FC<MailViewProps> = ({
   const [bulkSelectedIds, setBulkSelectedIds] = useState<string[]>([]);
 
   // Spacious Mode: increased outer padding, subtle vertical gaps between thread list and forensic metadata components
-  const [isSpaciousMode, setIsSpaciousMode] = useState<boolean>(true);
+  const [isSpaciousMode, setIsSpaciousMode] = useState<boolean>(false);
 
   // Preview Mode: 'message' (Clean, breathable reading) or 'security' (Full Forensics & Threat Dossier)
   const [previewMode, setPreviewMode] = useState<'message' | 'security'>('message');
@@ -196,12 +196,14 @@ export const MailView: React.FC<MailViewProps> = ({
         setShowRawHeaders(false);
         if (previewMode === 'security') {
           setPreviewMode('message');
+        } else if (selectedEmail) {
+          onSelectEmail(null);
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewMode]);
+  }, [previewMode, selectedEmail, onSelectEmail]);
 
   // PDF Forensic Report Export State
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -227,6 +229,29 @@ export const MailView: React.FC<MailViewProps> = ({
   const [isPulling, setIsPulling] = useState(false);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
   const [dragRefreshSuccess, setDragRefreshSuccess] = useState<string | null>(null);
+
+  // Active Keyboard Arrow Navigation State (activates after double click)
+  const [isKeyboardNavActive, setIsKeyboardNavActive] = useState<boolean>(false);
+
+  // Double-click activator: selects email and allows keyboard arrow navigation
+  const handleActivateKeyboardNav = useCallback((email?: EmailItem) => {
+    setIsKeyboardNavActive(true);
+    if (email) {
+      onSelectEmail(email);
+    }
+    setTimeout(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.focus();
+      }
+      const targetId = email?.id || selectedEmail?.id;
+      if (targetId) {
+        const el = document.getElementById(`email-item-${targetId}`);
+        if (el) {
+          el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+      }
+    }, 40);
+  }, [onSelectEmail, selectedEmail]);
 
   // Sync handler that triggers Gmail sync / next page
   const handleSyncLiveGmail = useCallback((fetchAll: boolean = false) => {
@@ -635,67 +660,135 @@ Enterprise Client Relations & Security`);
     setIsPolicySimulatorOpen(false);
   };
 
-  // Filtered emails
-  const filteredEmails = (emails || []).filter((e) => {
-    if (!e) return false;
-    // Connected App Source check
-    if (activeAppSource !== 'all') {
-      const emailSource = e.sourceApp || 'gmail';
-      if (emailSource !== activeAppSource) return false;
-    }
+  // Filtered emails with Real Emails sorted to the very top, followed by newest chronological order
+  const filteredEmails = useMemo(() => {
+    const list = (emails || []).filter((e) => {
+      if (!e) return false;
+      // Connected App Source check
+      if (activeAppSource !== 'all') {
+        const emailSource = e.sourceApp || 'gmail';
+        if (emailSource !== activeAppSource) return false;
+      }
 
-    // Automated Tag check
-    if (selectedTag !== 'all') {
-      const emailTags = e.tags || autoScanAndTagEmail(e);
-      if (!emailTags.includes(selectedTag)) return false;
-    }
+      // Automated Tag check
+      if (selectedTag !== 'all') {
+        const emailTags = e.tags || autoScanAndTagEmail(e);
+        if (!emailTags.includes(selectedTag)) return false;
+      }
 
-    // Category check
-    if (selectedCategory === 'important') {
-      if (e.importanceScore < 75) return false;
-    } else if (selectedCategory !== 'all' && e.category !== selectedCategory) {
-      return false;
-    }
+      // Category check
+      if (selectedCategory === 'important') {
+        if (e.importanceScore < 75) return false;
+      } else if (selectedCategory !== 'all' && e.category !== selectedCategory) {
+        return false;
+      }
 
-    // Security Status check
-    if (selectedSecurityStatus !== 'all') {
-      if (selectedSecurityStatus === 'phishing' && e.threatClassification !== 'phishing') return false;
-      if (selectedSecurityStatus === 'fraud' && e.threatClassification !== 'fraud') return false;
-      if (selectedSecurityStatus === 'suspicious' && e.threatClassification !== 'suspicious') return false;
-      if (selectedSecurityStatus === 'quarantined' && e.securityStatus !== 'quarantined') return false;
-      if (selectedSecurityStatus === 'blocked' && e.securityStatus !== 'blocked') return false;
-    }
+      // Security Status check
+      if (selectedSecurityStatus !== 'all') {
+        if (selectedSecurityStatus === 'phishing' && e.threatClassification !== 'phishing') return false;
+        if (selectedSecurityStatus === 'fraud' && e.threatClassification !== 'fraud') return false;
+        if (selectedSecurityStatus === 'suspicious' && e.threatClassification !== 'suspicious') return false;
+        if (selectedSecurityStatus === 'quarantined' && e.securityStatus !== 'quarantined') return false;
+        if (selectedSecurityStatus === 'blocked' && e.securityStatus !== 'blocked') return false;
+      }
 
-    // Tab check
-    if (activeTab === 'clean' && (e.securityRiskScore > 50 || e.threatClassification !== 'legitimate')) return false;
-    if (activeTab === 'threats' && (e.securityRiskScore <= 50 && e.threatClassification === 'legitimate')) return false;
-    if (activeTab === 'important' && e.importanceScore < 80) return false;
+      // Tab check
+      if (activeTab === 'clean' && (e.securityRiskScore > 50 || e.threatClassification !== 'legitimate')) return false;
+      if (activeTab === 'threats' && (e.securityRiskScore <= 50 && e.threatClassification === 'legitimate')) return false;
+      if (activeTab === 'important' && e.importanceScore < 80) return false;
 
-    // Search query check
-    if (filterQuery.trim()) {
-      const q = filterQuery.toLowerCase();
-      const match =
-        (e.subject || '').toLowerCase().includes(q) ||
-        (e.fromEmail || '').toLowerCase().includes(q) ||
-        (e.fromName || '').toLowerCase().includes(q) ||
-        (e.bodyText || '').toLowerCase().includes(q) ||
-        (e.category || '').toLowerCase().includes(q) ||
-        (e.tags && e.tags.some(t => (t || '').toLowerCase().includes(q))) ||
-        (e.attribution?.campaignName && e.attribution.campaignName.toLowerCase().includes(q));
-      if (!match) return false;
-    }
+      // Search query check
+      if (filterQuery.trim()) {
+        const q = filterQuery.toLowerCase();
+        const match =
+          (e.subject || '').toLowerCase().includes(q) ||
+          (e.fromEmail || '').toLowerCase().includes(q) ||
+          (e.fromName || '').toLowerCase().includes(q) ||
+          (e.bodyText || '').toLowerCase().includes(q) ||
+          (e.category || '').toLowerCase().includes(q) ||
+          (e.tags && e.tags.some(t => (t || '').toLowerCase().includes(q))) ||
+          (e.attribution?.campaignName && e.attribution.campaignName.toLowerCase().includes(q));
+        if (!match) return false;
+      }
 
-    return true;
-  });
+      return true;
+    });
 
-  // Dedicated split-view auto-preview: display first email in right preview pane on desktop if none selected
-  useEffect(() => {
-    if (!selectedEmail && filteredEmails && filteredEmails.length > 0) {
-      if (typeof window !== 'undefined' && window.innerWidth >= 768) {
-        onSelectEmail(filteredEmails[0]);
+    return list.sort((a, b) => {
+      // Prioritize user's real live synced emails at the top of the mailbox
+      const isActualReal = (item: EmailItem) => {
+        if (item.isRealEmail === true || item.isLiveGmail === true) return true;
+        if (item.id.startsWith('em-')) return false; // Initial mock emails
+        if (/^(gmail|m365|outlook|yahoo|corp)-\d+-\d+$/.test(item.id)) return false; // Synthetic corpus items
+        if (item.id.includes('corpus') || item.id.includes('synth')) return false;
+        return Boolean(item.isRealEmail);
+      };
+
+      const aIsReal = isActualReal(a);
+      const bIsReal = isActualReal(b);
+
+      if (aIsReal && !bIsReal) return -1;
+      if (!aIsReal && bIsReal) return 1;
+
+      const timeA = new Date(a.date).getTime() || 0;
+      const timeB = new Date(b.date).getTime() || 0;
+      return timeB - timeA;
+    });
+  }, [emails, activeAppSource, selectedTag, selectedCategory, selectedSecurityStatus, activeTab, filterQuery]);
+
+  // Keyboard navigation logic: Navigate and scroll emails using keyboard arrows (ArrowDown, ArrowUp, PageDown, PageUp)
+  const handleStreamKeyDown = useCallback((e: React.KeyboardEvent | KeyboardEvent) => {
+    if (filteredEmails.length === 0) return;
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'PageDown' || e.key === 'PageUp' || e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      setIsKeyboardNavActive(true);
+
+      const currentIndex = selectedEmail
+        ? filteredEmails.findIndex((m) => m.id === selectedEmail.id)
+        : -1;
+
+      let nextIndex = currentIndex;
+      if (e.key === 'ArrowDown') {
+        nextIndex = currentIndex < filteredEmails.length - 1 ? currentIndex + 1 : 0;
+      } else if (e.key === 'ArrowUp') {
+        nextIndex = currentIndex > 0 ? currentIndex - 1 : filteredEmails.length - 1;
+      } else if (e.key === 'PageDown') {
+        nextIndex = Math.min(filteredEmails.length - 1, (currentIndex >= 0 ? currentIndex : 0) + 5);
+      } else if (e.key === 'PageUp') {
+        nextIndex = Math.max(0, (currentIndex >= 0 ? currentIndex : 0) - 5);
+      } else if (e.key === 'Home') {
+        nextIndex = 0;
+      } else if (e.key === 'End') {
+        nextIndex = filteredEmails.length - 1;
+      }
+
+      if (nextIndex >= 0 && nextIndex < filteredEmails.length) {
+        const targetEmail = filteredEmails[nextIndex];
+        onSelectEmail(targetEmail);
+        const el = document.getElementById(`email-item-${targetEmail.id}`);
+        if (el) {
+          el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
       }
     }
-  }, [selectedEmail, filteredEmails, onSelectEmail]);
+  }, [filteredEmails, selectedEmail, onSelectEmail]);
+
+  // Global keydown listener when keyboard navigation is active
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea') return;
+
+      if (isKeyboardNavActive && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'PageDown' || e.key === 'PageUp')) {
+        handleStreamKeyDown(e);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isKeyboardNavActive, handleStreamKeyDown]);
+
+  // Email details open only on user click, never auto-selected on load
 
   const getCategoryIcon = (cat: string) => {
     switch (cat) {
@@ -711,14 +804,14 @@ Enterprise Client Relations & Security`);
   };
 
   return (
-    <div className={`h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-hidden select-none relative ${
+    <div className={`min-h-[calc(100vh-4rem)] flex flex-col md:flex-row overflow-x-hidden overflow-y-auto select-none relative ${
       isSpaciousMode 
-        ? 'p-3.5 sm:p-5 md:p-6 lg:p-7 gap-4 sm:gap-5 md:gap-6' 
-        : 'p-2 sm:p-2.5 md:p-3 gap-2.5 sm:gap-3'
+        ? 'p-2 sm:p-3 md:p-4 lg:p-5 gap-3 sm:gap-4 md:gap-5' 
+        : 'p-1.5 sm:p-2 md:p-2.5 gap-2 sm:gap-2.5'
     } bg-slate-950 transition-all duration-200`}>
       
-      {/* Left Stream List Pane (Split-View Mail Stream - Floating Rounded Card) */}
-      <div className={`w-full md:w-[320px] lg:w-[350px] xl:w-[380px] flex-shrink-0 rounded-2xl sm:rounded-3xl border border-slate-800/80 shadow-xl flex flex-col bg-slate-900/60 backdrop-blur-md h-full overflow-hidden ${selectedEmail ? 'hidden md:flex' : 'flex'}`}>
+      {/* Inbox Mail Stream Pane - Full Workspace Card */}
+      <div className="w-full flex-1 flex flex-col rounded-2xl sm:rounded-3xl border border-slate-800/80 shadow-xl bg-slate-900/60 backdrop-blur-md min-h-[640px] md:h-[calc(100vh-5.5rem)] md:min-h-[580px] overflow-hidden">
         
         {/* Top Header Controls: Sidebar Toggle, Back to Dashboard, Spacious Mode & Close */}
         <div className="px-3 py-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-xs">
@@ -901,16 +994,16 @@ Enterprise Client Relations & Security`);
         </div>
 
         {/* Search & Sub-Filter Bar */}
-        <div className="p-3 border-b border-slate-800 space-y-2 bg-slate-900/80 backdrop-blur-sm">
+        <div className="px-2.5 py-1.5 border-b border-slate-800 space-y-1.5 bg-slate-900/80 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
                 placeholder="Filter messages, senders, campaigns, tags..."
-                className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+                className="w-full pl-8 pr-2.5 py-1 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
               />
             </div>
             
@@ -921,25 +1014,25 @@ Enterprise Client Relations & Security`);
                   onSelectSecurityStatus('all');
                   setSelectedTag('all');
                 }}
-                className="text-[11px] font-mono px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap"
+                className="text-[10px] font-mono px-1.5 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap"
               >
                 Reset
               </button>
             )}
           </div>
 
-          {/* Quick Filter Tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 text-xs font-mono">
+          {/* Quick Filter Tabs & Tags */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-xs font-mono scrollbar-none">
             {[
               { id: 'all', label: `All (${emails.length})` },
               { id: 'important', label: '⭐ Important' },
-              { id: 'threats', label: '🚨 Threats Only' },
-              { id: 'clean', label: '🛡️ Clean Only' },
+              { id: 'threats', label: '🚨 Threats' },
+              { id: 'clean', label: '🛡️ Clean' },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-2.5 py-1 rounded-md text-[11px] whitespace-nowrap transition-colors ${
+                className={`px-2 py-0.5 rounded text-[10px] whitespace-nowrap transition-colors ${
                   activeTab === tab.id
                     ? 'bg-cyan-950 text-cyan-300 border border-cyan-800 font-semibold'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -948,16 +1041,12 @@ Enterprise Client Relations & Security`);
                 {tab.label}
               </button>
             ))}
-          </div>
 
-          {/* Automated Tag Filtering System */}
-          <div className="pt-1 flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
-            <span className="text-[10px] font-mono text-slate-500 uppercase flex items-center gap-1 flex-shrink-0">
-              <Tag className="w-3 h-3 text-cyan-400" /> Tags:
-            </span>
+            <div className="h-3 w-px bg-slate-800 mx-0.5 flex-shrink-0" />
+
             <button
               onClick={() => setSelectedTag('all')}
-              className={`text-[10px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap transition-colors ${
+              className={`text-[9.5px] font-mono px-1.5 py-0.5 rounded-full whitespace-nowrap transition-colors flex-shrink-0 ${
                 selectedTag === 'all'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
                   : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800'
@@ -965,28 +1054,28 @@ Enterprise Client Relations & Security`);
             >
               All Tags
             </button>
-            {SYSTEM_AVAILABLE_TAGS.map((t) => (
+            {SYSTEM_AVAILABLE_TAGS.slice(0, 4).map((t) => (
               <button
                 key={t}
                 onClick={() => setSelectedTag(selectedTag === t ? 'all' : t)}
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap transition-colors ${
+                className={`text-[9.5px] font-mono px-1.5 py-0.5 rounded-full whitespace-nowrap transition-colors flex-shrink-0 ${
                   selectedTag === t
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold'
                     : 'text-slate-400 hover:text-slate-200 bg-slate-950/60 border border-slate-800'
                 }`}
               >
-                {t}
+                #{t}
               </button>
             ))}
           </div>
         </div>
 
         {/* Selection / Bulk Action Bar */}
-        <div className="px-3 py-2 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between text-xs">
+        <div className="px-2.5 py-1.5 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <button
               onClick={handleSelectAll}
-              className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 flex items-center gap-1.5 font-mono text-[11px]"
+              className="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 flex items-center gap-1.5 font-mono text-[10.5px]"
               title={bulkSelectedIds.length === filteredEmails.length ? "Deselect All" : "Select All"}
             >
               {bulkSelectedIds.length === filteredEmails.length && filteredEmails.length > 0 ? (
@@ -1001,15 +1090,29 @@ Enterprise Client Relations & Security`);
 
             <button
               onClick={handleSelectFlagged}
-              className="px-2 py-0.5 rounded bg-red-950/50 hover:bg-red-900/60 text-red-400 border border-red-800/60 font-mono text-[10px]"
+              className="px-1.5 py-0.5 rounded bg-red-950/50 hover:bg-red-900/60 text-red-400 border border-red-800/60 font-mono text-[9.5px]"
             >
               Select Flagged
             </button>
           </div>
 
-          <span className="text-[11px] font-mono text-slate-500">
-            {filteredEmails.length} item{filteredEmails.length === 1 ? '' : 's'}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleActivateKeyboardNav(selectedEmail || filteredEmails[0])}
+              className={`text-[9.5px] font-mono px-2 py-0.5 rounded border flex items-center gap-1 transition-all cursor-pointer ${
+                isKeyboardNavActive
+                  ? 'text-cyan-300 bg-cyan-950/90 border-cyan-700 shadow-xs'
+                  : 'text-slate-400 bg-slate-900 border-slate-800 hover:text-slate-200'
+              }`}
+              title="Double-click any email or click here to enable arrow key navigation (↑ ↓)"
+            >
+              <span>⌨️ ↑ ↓ {isKeyboardNavActive ? 'Active' : 'Arrows'}</span>
+            </button>
+            <span className="text-[10.5px] font-mono text-slate-500">
+              {filteredEmails.length} item{filteredEmails.length === 1 ? '' : 's'}
+            </span>
+          </div>
         </div>
 
         {/* Floating Bulk Action Drawer if items are checked */}
@@ -1082,6 +1185,9 @@ Enterprise Client Relations & Security`);
         {/* Email Stream List with Smooth Drag-to-Scroll & Pull */}
         <div 
           ref={scrollContainerRef}
+          tabIndex={0}
+          onKeyDown={handleStreamKeyDown}
+          onDoubleClick={() => handleActivateKeyboardNav(selectedEmail || filteredEmails[0])}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -1089,7 +1195,7 @@ Enterprise Client Relations & Security`);
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className={`flex-1 overflow-y-auto ${isSpaciousMode ? 'p-3 space-y-3' : 'divide-y divide-slate-800/60'} easy-scroll-stream ${isMouseDownDrag ? 'is-dragging' : ''}`}
+          className={`flex-1 min-h-0 overflow-y-auto outline-none focus:ring-1 focus:ring-cyan-500/40 ${isSpaciousMode ? 'p-2 space-y-1.5' : 'divide-y divide-slate-800/50'} easy-scroll-stream ${isMouseDownDrag ? 'is-dragging' : ''}`}
         >
           {filteredEmails.length === 0 ? (
             <div className="p-8 text-center text-slate-500 text-xs">
@@ -1180,16 +1286,25 @@ Enterprise Client Relations & Security`);
                       onSelectEmail(email);
                     }
                   }}
-                  className={`p-3.5 cursor-pointer transition-all ${isSpaciousMode ? 'rounded-2xl border border-slate-800/80 shadow-sm' : ''} ${dynamicHighlightClass} ${
-                    isSelected ? 'ring-2 ring-cyan-500/60' : ''
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    handleActivateKeyboardNav(email);
+                  }}
+                  className={`cursor-pointer transition-all ${
+                    isSpaciousMode 
+                      ? 'p-2.5 rounded-xl border border-slate-800/80 shadow-xs mb-1.5 space-y-1' 
+                      : 'py-2 px-2.5 hover:bg-slate-800/40 border-b border-slate-800/50'
+                  } ${dynamicHighlightClass} ${
+                    isSelected ? 'ring-2 ring-cyan-500/60 bg-cyan-950/20' : ''
                   } ${!email.isRead ? 'font-medium' : ''}`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
+                  {/* Row 1: Checkbox, Sender, Badges, Threat Risk Pill, Date */}
+                  <div className="flex items-center justify-between gap-1.5 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1 truncate">
                       {/* Checkbox for Bulk Selection */}
                       <button
                         onClick={(e) => handleToggleSelect(e, email.id)}
-                        className="p-1 -ml-1 text-slate-400 hover:text-cyan-400 rounded focus:outline-none"
+                        className="p-0.5 -ml-0.5 text-slate-400 hover:text-cyan-400 rounded focus:outline-none flex-shrink-0"
                         aria-label="Select item"
                       >
                         {isChecked ? (
@@ -1199,25 +1314,25 @@ Enterprise Client Relations & Security`);
                         )}
                       </button>
 
-                      <div className="flex items-center gap-1.5 truncate">
-                        {getCategoryIcon(email.category)}
+                      <div className="flex items-center gap-1 min-w-0 truncate">
+                        <span className="flex-shrink-0">{getCategoryIcon(email.category)}</span>
                         <span className={`text-xs truncate ${!email.isRead ? 'font-bold text-white' : 'text-slate-300'}`}>
                           {email.fromName}
                         </span>
                         {email.sourceApp === 'outlook' ? (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-blue-950 text-blue-300 border border-blue-800 flex-shrink-0">
-                            Outlook 365
+                          <span className="px-1 py-0.2 rounded text-[8.5px] font-mono font-bold bg-blue-950 text-blue-300 border border-blue-800 flex-shrink-0">
+                            Outlook
                           </span>
                         ) : (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-red-950 text-red-300 border border-red-800 flex-shrink-0">
+                          <span className="px-1 py-0.2 rounded text-[8.5px] font-mono font-bold bg-red-950 text-red-300 border border-red-800 flex-shrink-0">
                             Gmail
                           </span>
                         )}
                         {badgeColorLabel}
                         {email.threadMessagesCount && email.threadMessagesCount > 1 && (
                           <span 
-                            className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950/90 text-cyan-300 border border-cyan-700/70 flex items-center gap-1 flex-shrink-0 shadow-xs"
-                            title={`${email.threadMessagesCount} messages in this conversation thread`}
+                            className="px-1 py-0.2 rounded text-[8.5px] font-mono font-bold bg-cyan-950/90 text-cyan-300 border border-cyan-700/70 flex items-center gap-0.5 flex-shrink-0"
+                            title={`${email.threadMessagesCount} messages in thread`}
                           >
                             <MessageSquare className="w-2.5 h-2.5 text-cyan-400" />
                             <span>{email.threadMessagesCount}</span>
@@ -1226,65 +1341,61 @@ Enterprise Client Relations & Security`);
                       </div>
                     </div>
 
-                    <span className="text-[10px] font-mono text-slate-500 whitespace-nowrap">
-                      {email.date.split(' ').slice(0, 3).join(' ')}
-                    </span>
-                  </div>
-
-                  <p className="text-xs font-medium text-slate-200 truncate mt-1">
-                    {email.subject}
-                  </p>
-
-                  <p className="text-[11px] text-slate-400 truncate mt-0.5 line-clamp-1">
-                    {email.bodySnippet}
-                  </p>
-
-                  {/* Tag Badges on Card */}
-                  {emailTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {emailTags.slice(0, 3).map((tg) => (
-                        <span
-                          key={tg}
-                          className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-950 text-slate-400 border border-slate-800"
-                        >
-                          #{tg}
-                        </span>
-                      ))}
-                      {emailTags.length > 3 && (
-                        <span className="text-[9px] font-mono text-slate-500">
-                          +{emailTags.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Dual Metric Indicator Row - Subtle vertical gap between thread info and forensic metadata */}
-                  <div className={`mt-3 flex items-center justify-between pt-2 border-t border-slate-800/50 text-[10px] font-mono`}>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-shrink-0 text-[10px] font-mono">
                       {isThreat ? (
-                        <span className="px-1.5 py-0.5 rounded bg-red-950 text-red-400 border border-red-800 flex items-center gap-1 font-bold">
+                        <span className="px-1.5 py-0.2 rounded bg-red-950 text-red-400 border border-red-800 font-bold text-[9px] flex items-center gap-0.5">
                           <AlertTriangle className="w-2.5 h-2.5" /> Risk {email.securityRiskScore}
                         </span>
                       ) : (
-                        <span className="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
+                        <span className="px-1.5 py-0.2 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 text-[9px] flex items-center gap-0.5">
                           <ShieldCheck className="w-2.5 h-2.5" /> Risk {email.securityRiskScore}
                         </span>
                       )}
-
-                      {email.promptInjectionDetected && (
-                        <span className="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 font-bold">
-                          AI INJECTION
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1 text-slate-400">
-                      <span>Priority:</span>
-                      <span className={`font-bold ${email.importanceScore >= 80 ? 'text-amber-400' : 'text-slate-300'}`}>
-                        {email.importanceScore}/100
+                      <span className="text-slate-500 whitespace-nowrap text-[9.5px]">
+                        {email.date.split(' ').slice(0, 3).join(' ')}
                       </span>
                     </div>
                   </div>
+
+                  {/* Row 2: Subject & Body Snippet Preview + Priority Indicator */}
+                  <div className="flex items-center justify-between gap-2 mt-0.5 min-w-0">
+                    <p className="text-xs text-slate-200 truncate flex-1 min-w-0 leading-tight">
+                      <span className={!email.isRead ? 'font-semibold text-slate-100' : 'text-slate-300'}>
+                        {email.subject}
+                      </span>
+                      <span className="text-slate-500 mx-1">·</span>
+                      <span className="text-[11px] text-slate-400 font-normal">
+                        {email.bodySnippet}
+                      </span>
+                    </p>
+
+                    {email.importanceScore >= 80 && (
+                      <span className="text-[9px] font-mono text-amber-400 font-bold flex-shrink-0" title={`Priority: ${email.importanceScore}/100`}>
+                        ★ {email.importanceScore}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Spacious Mode Additional Elements: Tags & Dual Metric if spacious mode is toggled */}
+                  {isSpaciousMode && (
+                    <div className="mt-1 flex items-center justify-between text-[9px] font-mono text-slate-400 pt-1 border-t border-slate-800/40">
+                      <div className="flex items-center gap-1 truncate">
+                        {emailTags.slice(0, 3).map((tg) => (
+                          <span key={tg} className="px-1 py-0.2 rounded bg-slate-950 text-slate-400 border border-slate-800 text-[8.5px]">
+                            #{tg}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-400">
+                        {email.promptInjectionDetected && (
+                          <span className="px-1 py-0.2 rounded bg-amber-950 text-amber-300 border border-amber-800 font-bold text-[8.5px]">
+                            AI INJECTION
+                          </span>
+                        )}
+                        <span>Priority: {email.importanceScore}/100</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -1355,22 +1466,55 @@ Enterprise Client Relations & Security`);
         </div>
       </div>
 
-      {/* Right Detail Pane (Dedicated Split-View Preview Pane - Floating Rounded Card) */}
-      <div className={`flex-1 min-w-0 flex flex-col bg-slate-900/50 backdrop-blur-md rounded-2xl sm:rounded-3xl border border-slate-800/80 shadow-xl h-full overflow-hidden ${!selectedEmail ? 'hidden md:flex items-center justify-center' : 'flex'}`}>
-        {!selectedEmail ? (
-          <div className="flex-1 flex items-center justify-center text-center p-8 space-y-3">
-            <div className="max-w-sm space-y-3">
-              <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 text-slate-500 flex items-center justify-center mx-auto">
-                <Eye className="w-6 h-6 text-cyan-400" />
+      {/* Email Details Pop-up Modal (Opens only when an email is clicked, fully closable) */}
+      {selectedEmail && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onSelectEmail(null);
+            }
+          }}
+        >
+          <div 
+            className="w-full max-w-5xl h-[92vh] max-h-[920px] flex flex-col bg-slate-900/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl border border-slate-700/80 shadow-2xl shadow-cyan-950/40 overflow-hidden ring-1 ring-white/10 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Pop-up Top Header Bar with Close Options */}
+            <div className="px-4 py-2.5 bg-slate-950/95 border-b border-slate-800 flex items-center justify-between text-xs flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <button
+                  id="btn-modal-close-back"
+                  type="button"
+                  onClick={() => onSelectEmail(null)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-cyan-500 font-mono text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                  title="Close email details and return to inbox list (ESC)"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Close & Return to Inbox</span>
+                </button>
+                <span className="text-[11px] font-mono text-slate-500 hidden sm:inline">
+                  (ESC to close)
+                </span>
               </div>
-              <h3 className="text-sm font-semibold text-slate-200">Select an email to inspect</h3>
-              <p className="text-xs text-slate-500">
-                Split-view active. Click any conversation thread or message from the inbox stream on the left to render full content in this dedicated preview pane.
-              </p>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-slate-500 hidden md:inline">
+                  {selectedEmail.id}
+                </span>
+                <button
+                  id="btn-modal-close-x"
+                  type="button"
+                  onClick={() => onSelectEmail(null)}
+                  className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-red-950 text-slate-400 hover:text-red-300 border border-slate-700 hover:border-red-700 transition-colors cursor-pointer"
+                  title="Close details (ESC)"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col h-full overflow-y-auto">
+
+            <div className="flex-1 min-h-0 flex flex-col h-full overflow-y-auto">
             
             {/* Top Email Header Controls - Natural scrolling so email body and thread remain fully readable */}
             <div className="p-4 border-b border-slate-800 bg-slate-900/60 space-y-3">
@@ -2013,6 +2157,22 @@ Enterprise Client Relations & Security`);
                     </div>
                   )}
                 </div>
+
+                {/* Bottom Close Bar in Email Reading View */}
+                <div className="flex items-center justify-between p-4 mt-6 border-t border-slate-800/80 bg-slate-950/40 rounded-b-2xl">
+                  <button
+                    type="button"
+                    onClick={() => onSelectEmail(null)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-cyan-500 font-mono text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                    title="Close email details and return to inbox (ESC)"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Close Email (Return to Inbox)</span>
+                  </button>
+                  <span className="text-[10.5px] font-mono text-slate-500">
+                    MailGuard Verified • ESC to close
+                  </span>
+                </div>
               </div>
             ) : (
               /* Security Forensics & Threat Dossier Tab Mode with floating rounded cards and subtle vertical gaps */
@@ -2263,9 +2423,10 @@ Enterprise Client Relations & Security`);
                 </div>
               </div>
             )}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Floating, Rounded-Corner Security Sidebar Card (creating whitespace and breathable feel) */}
       {isSecurityDrawerOpen && selectedEmail && (

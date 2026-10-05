@@ -74,7 +74,7 @@ export default function App() {
 
   // Active theme state (reactive state for instant toggle on login and throughout app)
   const [appTheme, setAppTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('mailguard_theme') as 'dark' | 'light') || 'dark';
+    return (localStorage.getItem('mailguard_theme') as 'dark' | 'light') === 'dark' ? 'dark' : 'light';
   });
   const currentTheme = session?.theme || appTheme;
 
@@ -215,16 +215,18 @@ export default function App() {
         },
         onBatchLoaded: (batchEmails, prog) => {
           // Incrementally group and inject conversation threads so user views them live as each page completes
+          const markedBatch = batchEmails.map(b => ({ ...b, isRealEmail: true, isLiveGmail: true }));
           setEmails((prev) => {
-            const batchIds = new Set(batchEmails.map((e) => e.id));
+            const batchIds = new Set(markedBatch.map((e) => e.id));
             const existingFiltered = prev.filter((e) => !batchIds.has(e.id));
-            return groupEmailsIntoThreads([...batchEmails, ...existingFiltered]);
+            return groupEmailsIntoThreads([...markedBatch, ...existingFiltered]);
           });
         },
       });
 
       if (liveEmails && liveEmails.length > 0) {
-        const conversationThreads = groupEmailsIntoThreads(liveEmails);
+        const markedLive = liveEmails.map(e => ({ ...e, isRealEmail: true, isLiveGmail: true }));
+        const conversationThreads = groupEmailsIntoThreads(markedLive);
         setEmails((prev) => {
           const threadIds = new Set(conversationThreads.map((e) => e.id));
           const existingFiltered = prev.filter((e) => !threadIds.has(e.id));
@@ -303,9 +305,9 @@ export default function App() {
     const cleanUsername = cleanEmail.split('@')[0] || 'analyst';
     const displayName = userName || (cleanUsername.charAt(0).toUpperCase() + cleanUsername.slice(1)) + ' (Microsoft)';
 
-    let finalEmails = msftEmails;
+    let finalEmails: EmailItem[] = (msftEmails || []).map(e => ({ ...e, isRealEmail: true }));
     if (!finalEmails || finalEmails.length === 0) {
-      finalEmails = generateProviderMailboxHistory(sourceId, cleanEmail, cleanUsername);
+      finalEmails = generateProviderMailboxHistory(sourceId, cleanEmail, cleanUsername).map(e => ({ ...e, isRealEmail: true }));
     }
 
     setEmails((prev) => {
@@ -508,8 +510,13 @@ export default function App() {
 
   // Handler: New RFC 5322 Ingestion
   const handleEmailIngested = (newEmail: EmailItem) => {
-    setEmails((prev) => [newEmail, ...prev]);
-    setSelectedEmail(newEmail);
+    const realEmail: EmailItem = {
+      ...newEmail,
+      isRealEmail: true,
+      isLiveGmail: false,
+    };
+    setEmails((prev) => [realEmail, ...prev]);
+    setSelectedEmail(realEmail);
     setCurrentView('mail');
 
     handleAddAuditLog({
@@ -571,6 +578,7 @@ export default function App() {
     } else {
       if (view === 'mail') {
         setIsSidebarCollapsed(true);
+        setSelectedEmail(null);
       }
       setCurrentView(view);
     }
@@ -612,7 +620,7 @@ export default function App() {
                 setConnectedMailProvider('gmail');
                 setConnectBanner(`Connected & synced ${finalEmails.length} actual Gmail messages for ${user.email}. Real-time forensic seals applied.`);
               }
-              setSelectedEmail(finalEmails[0]);
+              setSelectedEmail(null);
             }
             setIsPenguinOpen(true);
           }} 
@@ -623,7 +631,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans overflow-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans overflow-x-hidden overflow-y-auto">
       
       {/* Universal Top Navigation */}
       <Navbar
@@ -657,7 +665,7 @@ export default function App() {
       />
 
       {/* Main Workspace with Sidebar and View Pane */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-y-auto overflow-x-hidden">
         
         {/* Left Navigational Rail (Desktop & Mobile Drawer) */}
         <Sidebar
@@ -666,12 +674,14 @@ export default function App() {
           selectedCategory={selectedCategory}
           onSelectCategory={(cat) => {
             setSelectedCategory(cat);
+            setSelectedEmail(null);
             setIsSidebarCollapsed(true);
             setCurrentView('mail');
           }}
           selectedSecurityStatus={selectedSecurityStatus}
           onSelectSecurityStatus={(status) => {
             setSelectedSecurityStatus(status);
+            setSelectedEmail(null);
             setCurrentView(status === 'all' ? 'mail' : 'security');
           }}
           emails={emails}
@@ -687,7 +697,7 @@ export default function App() {
         />
 
         {/* Right Main Content Pane */}
-        <div className="flex-1 flex flex-col relative overflow-hidden">
+        <div className="flex-1 flex flex-col relative min-h-0 overflow-y-auto overflow-x-hidden">
           <main className="flex-1 overflow-y-auto bg-slate-950 relative">
             
             {/* Actionable Re-Authentication & Granular Error Banner */}
@@ -752,6 +762,7 @@ export default function App() {
                 onNavigate={setCurrentView}
                 onSelectCategory={(cat) => {
                   setSelectedCategory(cat);
+                  setSelectedEmail(null);
                   setCurrentView('mail');
                 }}
                 onSelectSecurityStatus={(status) => {

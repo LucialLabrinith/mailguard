@@ -372,6 +372,7 @@ export function groupEmailsIntoThreads(emails: EmailItem[]): EmailItem[] {
     // Collect all attachments and URLs across the conversation thread
     const allAttachments = sorted.flatMap(m => m.attachments || []);
     const allUrls = sorted.flatMap(m => m.urls || []);
+    const isRealThread = sorted.some(m => Boolean(m.isRealEmail || m.isLiveGmail));
 
     groupedThreads.push({
       ...latest,
@@ -384,11 +385,18 @@ export function groupEmailsIntoThreads(emails: EmailItem[]): EmailItem[] {
       securityStatus: threatStatus,
       attachments: allAttachments,
       urls: allUrls,
+      isRealEmail: isRealThread,
+      isLiveGmail: isRealThread,
     });
   }
 
-  // Sort threads so the most recent conversation is at the top of the mailbox
+  // Sort threads: Real live fetched emails always appear at the top, then newest by date
   return groupedThreads.sort((a, b) => {
+    const aReal = Boolean(a.isRealEmail || a.isLiveGmail);
+    const bReal = Boolean(b.isRealEmail || b.isLiveGmail);
+    if (aReal && !bReal) return -1;
+    if (!aReal && bReal) return 1;
+
     const timeA = new Date(a.date).getTime() || 0;
     const timeB = new Date(b.date).getTime() || 0;
     return timeB - timeA;
@@ -923,6 +931,8 @@ function parseGmailMessage(msg: any): EmailItem {
     sourceApp: 'gmail',
     threadId: msg.threadId || msg.id,
     threadMessagesCount: 1,
+    isRealEmail: true,
+    isLiveGmail: true,
   };
 }
 
@@ -940,13 +950,29 @@ export function ensureRichGmailCorpus(
   if (!liveFetched || liveFetched.length === 0) {
     return groupEmailsIntoThreads(syntheticCorpus);
   }
-  if (liveFetched.length >= 12) {
-    return groupEmailsIntoThreads(liveFetched);
+
+  // Ensure all live fetched emails are marked as real
+  const markedLive = liveFetched.map((e) => ({
+    ...e,
+    isRealEmail: true,
+    isLiveGmail: true,
+  }));
+
+  if (markedLive.length >= 12) {
+    return groupEmailsIntoThreads(markedLive);
   }
+
   // If fewer than 12 emails exist (e.g. only 1 email in new or test mailbox):
   // Put live emails at the top, and fill remaining slots from the forensic corpus
-  const liveSubjects = new Set(liveFetched.map((e) => (e.subject || '').toLowerCase().trim()));
-  const fillItems = syntheticCorpus.filter((synth) => !liveSubjects.has((synth.subject || '').toLowerCase().trim()));
-  return groupEmailsIntoThreads([...liveFetched, ...fillItems]);
+  const liveSubjects = new Set(markedLive.map((e) => (e.subject || '').toLowerCase().trim()));
+  const fillItems = syntheticCorpus
+    .filter((synth) => !liveSubjects.has((synth.subject || '').toLowerCase().trim()))
+    .map((synth) => ({
+      ...synth,
+      isRealEmail: false,
+      isLiveGmail: false,
+    }));
+
+  return groupEmailsIntoThreads([...markedLive, ...fillItems]);
 }
 

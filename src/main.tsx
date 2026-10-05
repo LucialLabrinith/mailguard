@@ -6,12 +6,12 @@ import './index.css';
 // Synchronous initial theme application to avoid any visual lag
 try {
   const savedTheme = localStorage.getItem('mailguard_theme');
-  if (savedTheme === 'light') {
-    document.documentElement.classList.add('light-audit');
-    document.documentElement.classList.remove('dark');
-  } else {
+  if (savedTheme === 'dark') {
     document.documentElement.classList.remove('light-audit');
     document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.add('light-audit');
+    document.documentElement.classList.remove('dark');
   }
 } catch {
   // Ignore in SSR / restricted environments

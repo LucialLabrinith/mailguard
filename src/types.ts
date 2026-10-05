@@ -192,6 +192,8 @@ export interface EmailItem {
   threadId?: string;
   threadMessagesCount?: number;
   threadMessages?: EmailItem[];
+  isRealEmail?: boolean;
+  isLiveGmail?: boolean;
 }
 
 export type ConnectedSourceId = 'all' | 'gmail' | 'docs' | 'm365' | 'outlook' | 'yahoo' | 'corporate';
